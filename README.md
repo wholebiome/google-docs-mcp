@@ -60,7 +60,7 @@ gcloud run deploy google-docs-mcp \
   --region europe-west3 \
   --port 8080 \
   --allow-unauthenticated \
-  --set-env-vars "^|^MCP_TRANSPORT=httpStream|BASE_URL=https://your-service.run.app|GOOGLE_CLIENT_ID=...|GOOGLE_CLIENT_SECRET=...|TOKEN_STORE=firestore|JWT_SIGNING_KEY=your-secret-key"
+  --set-env-vars "^|^MCP_TRANSPORT=httpStream|BASE_URL=https://your-service.run.app|GOOGLE_CLIENT_ID=...|GOOGLE_CLIENT_SECRET=...|TOKEN_STORE=firestore|JWT_SIGNING_KEY=your-signing-key|TOKEN_ENCRYPTION_KEY=your-encryption-key"
 ```
 
 Then each user just adds the URL to their MCP client -- no npx, no tokens, no local setup:
@@ -317,18 +317,20 @@ Visit the server root URL (`/`) for setup instructions and a ready-to-copy clien
 
 ### Environment Variables
 
-| Variable               | Description                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `MCP_TRANSPORT`        | Set to `httpStream` to enable remote mode (default: `stdio`)             |
-| `BASE_URL`             | Public URL of the deployed server (required for OAuth redirects)         |
-| `GOOGLE_CLIENT_ID`     | OAuth client ID (Web application type)                                   |
-| `GOOGLE_CLIENT_SECRET` | OAuth client secret                                                      |
-| `ALLOWED_DOMAINS`      | Comma-separated list of allowed Google Workspace domains (optional)      |
-| `PORT`                 | HTTP port (default: `8080`)                                              |
-| `TOKEN_STORE`          | Set to `firestore` for persistent token storage (default: in-memory)     |
-| `JWT_SIGNING_KEY`      | Fixed signing key so tokens survive restarts (auto-generated if not set) |
-| `REFRESH_TOKEN_TTL`    | Refresh token lifetime in seconds (default: `2592000` / 30 days)         |
-| `GCLOUD_PROJECT`       | GCP project ID for Firestore (required when `TOKEN_STORE=firestore`)     |
+| Variable               | Description                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `MCP_TRANSPORT`        | Set to `httpStream` to enable remote mode (default: `stdio`)               |
+| `BASE_URL`             | Public URL of the deployed server (required for OAuth redirects)           |
+| `GOOGLE_CLIENT_ID`     | OAuth client ID (Web application type)                                     |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret                                                        |
+| `ALLOWED_DOMAINS`      | Comma-separated list of allowed Google Workspace domains (optional)        |
+| `PORT`                 | HTTP port (default: `8080`)                                                |
+| `TOKEN_STORE`          | Set to `firestore` for persistent token storage (default: in-memory)       |
+| `JWT_SIGNING_KEY`      | Fixed signing key so tokens survive restarts (derived if not set)          |
+| `TOKEN_ENCRYPTION_KEY` | Fixed encryption key for persisted token records (derived if not set)      |
+| `ACCESS_TOKEN_TTL`     | Connector access-token lifetime in seconds (default: `2592000` / 30 days)  |
+| `REFRESH_TOKEN_TTL`    | Connector refresh-token lifetime in seconds (default: `7776000` / 90 days) |
+| `GCLOUD_PROJECT`       | Optional GCP project ID override for Firestore                             |
 
 ### Setup
 
@@ -343,7 +345,7 @@ gcloud run deploy google-docs-mcp \
   --region europe-west3 \
   --port 8080 \
   --allow-unauthenticated \
-  --set-env-vars "^|^MCP_TRANSPORT=httpStream|BASE_URL=https://your-service.run.app|ALLOWED_DOMAINS=yourdomain.com|GOOGLE_CLIENT_ID=...|GOOGLE_CLIENT_SECRET=...|TOKEN_STORE=firestore|JWT_SIGNING_KEY=your-secret-key"
+  --set-env-vars "^|^MCP_TRANSPORT=httpStream|BASE_URL=https://your-service.run.app|ALLOWED_DOMAINS=yourdomain.com|GOOGLE_CLIENT_ID=...|GOOGLE_CLIENT_SECRET=...|TOKEN_STORE=firestore|JWT_SIGNING_KEY=your-signing-key|TOKEN_ENCRYPTION_KEY=your-encryption-key"
 ```
 
 > **Note:** The `^|^` prefix changes the env var delimiter from `,` to `|` because `ALLOWED_DOMAINS` contains commas.
@@ -351,9 +353,9 @@ gcloud run deploy google-docs-mcp \
 ### How It Works
 
 - By default, OAuth sessions are stored in memory and lost on restart
-- For production, set `TOKEN_STORE=firestore` and `JWT_SIGNING_KEY` for persistent auth across deploys and cold starts
+- For production, set `TOKEN_STORE=firestore`, `JWT_SIGNING_KEY`, and `TOKEN_ENCRYPTION_KEY` for persistent auth across deploys and cold starts
 - `ALLOWED_DOMAINS` restricts access to specific Google Workspace domains
-- Access tokens refresh automatically; inactive sessions expire after 30 days
+- Access tokens refresh automatically; inactive sessions expire after 90 days by default
 - Users can revoke access at any time via [Google Account permissions](https://myaccount.google.com/permissions)
 
 ### Updating Your Deployment
@@ -493,8 +495,8 @@ Without `GOOGLE_MCP_PROFILE`, behavior is unchanged.
   - Workaround: hard-refresh the page (`Cmd+Shift+R` on macOS, `Ctrl+Shift+R` on Windows/Linux). The second request hits a now-warm instance and the OAuth flow proceeds normally.
   - Permanent fix: set `--min-instances=1` on your Cloud Run service to keep one instance always warm (`gcloud run services update <service> --region <region> --min-instances=1`). Costs ~$2–3/month for the memory reservation.
 - **Re-authenticated unexpectedly after a redeploy (remote deployments):**
-  - Cause: `JWT_SIGNING_KEY` is auto-generated on each container start, so redeploys invalidate all previously issued sessions.
-  - Fix: set a stable `JWT_SIGNING_KEY` env var on the Cloud Run service so it survives restarts: `gcloud run services update <service> --region <region> --update-env-vars JWT_SIGNING_KEY=$(openssl rand -hex 32)`. Sessions minted after this change will survive future redeploys.
+  - Cause: persisted OAuth records need stable signing and encryption keys. If either key changes, previously issued sessions cannot be verified or decrypted.
+  - Fix: set stable `JWT_SIGNING_KEY` and `TOKEN_ENCRYPTION_KEY` env vars on the Cloud Run service. Sessions minted after this change will survive future redeploys.
 - **High CPU with multiple MCP sessions:** Some clients call `tools/list` very often. FastMCP otherwise recomputes JSON Schema for every tool on every request, which can pin a CPU core per process. This server precomputes the payload once before stdio starts and replaces the `tools/list` handler with a cached snapshot. If you still see sustained load, capture a few seconds with `sample <pid> 1 10` (macOS) or `node --cpu-prof` and report it.
 
 ---

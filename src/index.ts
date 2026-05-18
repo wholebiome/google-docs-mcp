@@ -26,6 +26,12 @@ import { wrapServerForRemote } from './remoteWrapper.js';
 import { registerLandingPage } from './landingPage.js';
 import { registerDownloadRoute } from './downloadProxy.js';
 import { FirestoreTokenStorage } from './firestoreTokenStorage.js';
+import {
+  buildGoogleAuthorizationEndpoint,
+  getRemoteAuthSettings,
+  getUpstreamAccessTokenExpiresAt,
+  preferConfiguredAccessTokenTtl,
+} from './remoteAuthConfig.js';
 import { logger } from './logger.js';
 
 // --- Auth subcommand ---
@@ -106,6 +112,8 @@ if (isRemote) {
   }
 }
 
+const remoteAuthSettings = isRemote ? getRemoteAuthSettings() : undefined;
+
 const GOOGLE_API_SCOPES = [
   'openid',
   'email',
@@ -119,7 +127,7 @@ const GOOGLE_API_SCOPES = [
 
 const oauthProxy = isRemote
   ? new OAuthProxy({
-      upstreamAuthorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+      upstreamAuthorizationEndpoint: buildGoogleAuthorizationEndpoint(),
       upstreamTokenEndpoint: 'https://oauth2.googleapis.com/token',
       upstreamClientId: process.env.GOOGLE_CLIENT_ID!,
       upstreamClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -133,11 +141,11 @@ const oauthProxy = isRemote
         'https://claude.com/*',
         'claude://*',
       ],
-      jwtSigningKey: process.env.JWT_SIGNING_KEY,
-      encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
+      jwtSigningKey: remoteAuthSettings!.jwtSigningKey,
+      encryptionKey: remoteAuthSettings!.tokenEncryptionKey,
       consentRequired: false,
-      accessTokenTtl: 2592000,
-      refreshTokenTtl: 2592000,
+      accessTokenTtl: remoteAuthSettings!.accessTokenTtl,
+      refreshTokenTtl: remoteAuthSettings!.refreshTokenTtl,
       ...(process.env.TOKEN_STORE === 'firestore' && {
         tokenStorage: new FirestoreTokenStorage(process.env.GCLOUD_PROJECT),
       }),
@@ -145,17 +153,7 @@ const oauthProxy = isRemote
   : undefined;
 
 if (oauthProxy) {
-  // issueSwappedTokens() inlines the TTL logic: it checks
-  // upstreamTokens.expiresIn > 0 BEFORE config.accessTokenTtl.
-  // Google always returns expiresIn=3600, so our 30-day config is
-  // never reached. Zero it out so the config fallback is used.
-  const origIssue = (oauthProxy as any).issueSwappedTokens.bind(oauthProxy);
-  (oauthProxy as any).issueSwappedTokens = async function (clientId: string, upstreamTokens: any) {
-    if (this.config.accessTokenTtl) {
-      return origIssue(clientId, { ...upstreamTokens, expiresIn: 0 });
-    }
-    return origIssue(clientId, upstreamTokens);
-  };
+  preferConfiguredAccessTokenTtl(oauthProxy);
 }
 
 const server = new FastMCP({
@@ -173,9 +171,7 @@ const server = new FastMCP({
         return {
           accessToken: upstreamTokens.accessToken,
           refreshToken: upstreamTokens.refreshToken,
-          expiresAt: upstreamTokens.expiresIn
-            ? Math.floor(Date.now() / 1000) + upstreamTokens.expiresIn
-            : undefined,
+          expiresAt: getUpstreamAccessTokenExpiresAt(upstreamTokens),
           idToken: upstreamTokens.idToken,
           scopes: upstreamTokens.scope,
         };

@@ -196,6 +196,8 @@ async function authenticate(): Promise<OAuth2Client> {
 
   const authorizeUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
+    prompt: 'consent',
+    include_granted_scopes: true,
     scope: SCOPES.join(' '),
     state,
   });

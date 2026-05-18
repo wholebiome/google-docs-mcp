@@ -7,6 +7,7 @@ import { logger } from './logger.js';
 
 export interface RequestClients {
   accessToken: string;
+  accessTokenExpiresAt?: number;
   auth: OAuth2Client;
   docs: docs_v1.Docs;
   sheets: sheets_v4.Sheets;
@@ -34,14 +35,20 @@ function checkDomain(idToken?: string): boolean {
   }
 }
 
-function createClients(accessToken: string, refreshToken?: string): RequestClients {
+function createClients(
+  accessToken: string,
+  refreshToken?: string,
+  accessTokenExpiresAt?: number
+): RequestClients {
   const auth = new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
   auth.setCredentials({
     access_token: accessToken,
     refresh_token: refreshToken,
+    ...(accessTokenExpiresAt ? { expiry_date: accessTokenExpiresAt * 1000 } : {}),
   });
   return {
     accessToken,
+    accessTokenExpiresAt,
     auth,
     docs: google.docs({ version: 'v1', auth }),
     sheets: google.sheets({ version: 'v4', auth }),
@@ -76,12 +83,12 @@ export function wrapServerForRemote(server: FastMCP): void {
         ? (auth: any) => requireAuth(auth) && (toolDef.canAccess as Function)(auth)
         : requireAuth,
       execute: async (args: any, context: any) => {
-        const { accessToken, refreshToken, idToken } = getAuthSession(context.session);
+        const { accessToken, refreshToken, expiresAt, idToken } = getAuthSession(context.session);
         if (!checkDomain(idToken)) {
           throw new UserError('Your Google account domain is not allowed on this server.');
         }
 
-        const clients = createClients(accessToken, refreshToken);
+        const clients = createClients(accessToken, refreshToken, expiresAt);
         return requestClients.run(clients, () => originalExecute(args, context));
       },
     });
