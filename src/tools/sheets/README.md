@@ -7,6 +7,7 @@ Tools for reading, writing, and managing Google Spreadsheets, including cell dat
 | Tool               | Description                                              |
 | ------------------ | -------------------------------------------------------- |
 | `readSpreadsheet`  | Reads data from a range in a spreadsheet                 |
+| `querySpreadsheet` | Runs SQL-like read-only queries without modifying sheets |
 | `writeSpreadsheet` | Writes data to a range, overwriting existing values      |
 | `appendRows`       | Appends rows to the end of a sheet                       |
 | `clearRange`       | Clears all cell values in a range without deleting cells |

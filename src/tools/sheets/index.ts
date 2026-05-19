@@ -1,5 +1,6 @@
 import type { FastMCP } from 'fastmcp';
 import { register as readSpreadsheet } from './readSpreadsheet.js';
+import { register as querySpreadsheet } from './querySpreadsheet.js';
 import { register as writeSpreadsheet } from './writeSpreadsheet.js';
 import { register as batchWrite } from './batchWrite.js';
 import { register as appendSpreadsheetRows } from './appendSpreadsheetRows.js';
@@ -46,6 +47,7 @@ import { register as deleteChart } from './deleteChart.js';
 
 export function registerSheetsTools(server: FastMCP) {
   readSpreadsheet(server);
+  querySpreadsheet(server);
   writeSpreadsheet(server);
   batchWrite(server);
   appendSpreadsheetRows(server);
