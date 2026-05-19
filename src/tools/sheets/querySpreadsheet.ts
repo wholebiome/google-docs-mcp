@@ -30,7 +30,23 @@ type GvizResponse = {
   };
 };
 
-export function parseGvizJson(responseText: string): GvizResponse {
+export function parseGvizJson(responseData: unknown): GvizResponse {
+  if (responseData && typeof responseData === 'object' && !Buffer.isBuffer(responseData)) {
+    return responseData as GvizResponse;
+  }
+
+  if (responseData === null || responseData === undefined) {
+    throw new UserError('Query returned an empty response from Google Sheets.');
+  }
+
+  const responseText = Buffer.isBuffer(responseData) ? responseData.toString('utf8') : responseData;
+
+  if (typeof responseText !== 'string') {
+    throw new UserError(
+      `Query returned an unsupported response type from Google Sheets: ${typeof responseText}.`
+    );
+  }
+
   const trimmed = responseText.trim().replace(/^\/\*O_o\*\/\s*/, '');
   const prefix = 'google.visualization.Query.setResponse(';
 

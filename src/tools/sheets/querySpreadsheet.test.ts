@@ -87,4 +87,21 @@ describe('parseGvizJson', () => {
       )
     ).toEqual({ status: 'ok', table: { cols: [], rows: [] } });
   });
+
+  it('accepts already-parsed response objects from the Google client', () => {
+    const response = { status: 'ok', table: { cols: [], rows: [] } };
+
+    expect(parseGvizJson(response)).toBe(response);
+  });
+
+  it('parses buffer response bodies', () => {
+    expect(parseGvizJson(Buffer.from('{"status":"ok","table":{"cols":[],"rows":[]}}'))).toEqual({
+      status: 'ok',
+      table: { cols: [], rows: [] },
+    });
+  });
+
+  it('throws a UserError for empty responses instead of calling trim', () => {
+    expect(() => parseGvizJson(undefined)).toThrow('Query returned an empty response');
+  });
 });
