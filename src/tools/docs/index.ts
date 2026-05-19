@@ -29,6 +29,7 @@ import { register as findSectionsByHeading } from './findSectionsByHeading.js';
 import { register as replaceTableRowData } from './replaceTableRowData.js';
 import { register as appendTableRows } from './appendTableRows.js';
 import { register as deleteTableRows } from './deleteTableRows.js';
+import { destructiveDisabled } from '../destructiveGuard.js';
 
 // Sub-domains
 import { registerCommentTools } from './comments/index.js';
@@ -42,7 +43,7 @@ export function registerDocsTools(server: FastMCP) {
   addTab(server);
   appendToGoogleDoc(server);
   insertText(server);
-  deleteRange(server);
+  if (!destructiveDisabled()) deleteRange(server);
   modifyText(server);
   findAndReplace(server);
 
@@ -63,7 +64,7 @@ export function registerDocsTools(server: FastMCP) {
   findSectionsByHeading(server);
   replaceTableRowData(server);
   appendTableRows(server);
-  deleteTableRows(server);
+  if (!destructiveDisabled()) deleteTableRows(server);
 
   // Sub-domains
   registerFormattingTools(server);

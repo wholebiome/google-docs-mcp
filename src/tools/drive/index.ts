@@ -14,6 +14,7 @@ import { register as deleteFile } from './deleteFile.js';
 import { register as createDocument } from './createDocument.js';
 import { register as createFromTemplate } from './createFromTemplate.js';
 import { register as downloadFile } from './downloadFile.js';
+import { destructiveDisabled } from '../destructiveGuard.js';
 
 export function registerDriveTools(server: FastMCP) {
   listGoogleDocs(server);
@@ -27,7 +28,7 @@ export function registerDriveTools(server: FastMCP) {
   moveFile(server);
   copyFile(server);
   renameFile(server);
-  deleteFile(server);
+  if (!destructiveDisabled()) deleteFile(server);
   createDocument(server);
   createFromTemplate(server);
   downloadFile(server);

@@ -44,6 +44,7 @@ import { register as updateTableRange } from './updateTableRange.js';
 import { register as appendTableRows } from './appendTableRows.js';
 import { register as insertChart } from './insertChart.js';
 import { register as deleteChart } from './deleteChart.js';
+import { destructiveDisabled } from '../destructiveGuard.js';
 
 export function registerSheetsTools(server: FastMCP) {
   readSpreadsheet(server);
@@ -56,7 +57,7 @@ export function registerSheetsTools(server: FastMCP) {
   addSpreadsheetSheet(server);
   createSpreadsheet(server);
   listGoogleSheets(server);
-  deleteSheet(server);
+  if (!destructiveDisabled()) deleteSheet(server);
   renameSheet(server);
   duplicateSheet(server);
   copySheetTo(server);
@@ -73,7 +74,7 @@ export function registerSheetsTools(server: FastMCP) {
   setCellBorders(server);
   protectRange(server);
   getConditionalFormatting(server);
-  deleteConditionalFormatting(server);
+  if (!destructiveDisabled()) deleteConditionalFormatting(server);
   setDropdownValidation(server);
   addConditionalFormatting(server);
   groupRows(server);
@@ -86,9 +87,9 @@ export function registerSheetsTools(server: FastMCP) {
   createTable(server);
   listTables(server);
   getTable(server);
-  deleteTable(server);
+  if (!destructiveDisabled()) deleteTable(server);
   updateTableRange(server);
   appendTableRows(server);
   insertChart(server);
-  deleteChart(server);
+  if (!destructiveDisabled()) deleteChart(server);
 }

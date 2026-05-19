@@ -12,12 +12,13 @@ import { register as updateDraft } from './updateDraft.js';
 import { register as sendDraft } from './sendDraft.js';
 import { register as deleteDraft } from './deleteDraft.js';
 import { register as triageInbox } from './triageInbox.js';
+import { destructiveDisabled } from '../destructiveGuard.js';
 
 export function registerGmailTools(server: FastMCP) {
   listMessages(server);
   getMessage(server);
   sendEmail(server);
-  trashMessage(server);
+  if (!destructiveDisabled()) trashMessage(server);
   modifyMessageLabels(server);
   listLabels(server);
   createDraft(server);
@@ -25,6 +26,6 @@ export function registerGmailTools(server: FastMCP) {
   getDraft(server);
   updateDraft(server);
   sendDraft(server);
-  deleteDraft(server);
+  if (!destructiveDisabled()) deleteDraft(server);
   triageInbox(server);
 }
