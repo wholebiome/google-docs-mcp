@@ -1,6 +1,7 @@
 import type { FastMCP } from 'fastmcp';
 import { register as readSpreadsheet } from './readSpreadsheet.js';
 import { register as querySpreadsheet } from './querySpreadsheet.js';
+import { register as batchQuerySpreadsheet } from './batchQuerySpreadsheet.js';
 import { register as writeSpreadsheet } from './writeSpreadsheet.js';
 import { register as batchWrite } from './batchWrite.js';
 import { register as appendSpreadsheetRows } from './appendSpreadsheetRows.js';
@@ -49,6 +50,7 @@ import { destructiveDisabled } from '../destructiveGuard.js';
 export function registerSheetsTools(server: FastMCP) {
   readSpreadsheet(server);
   querySpreadsheet(server);
+  batchQuerySpreadsheet(server);
   writeSpreadsheet(server);
   batchWrite(server);
   appendSpreadsheetRows(server);

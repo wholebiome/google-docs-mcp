@@ -4,13 +4,14 @@ Tools for reading, writing, and managing Google Spreadsheets, including cell dat
 
 ## Data
 
-| Tool               | Description                                              |
-| ------------------ | -------------------------------------------------------- |
-| `readSpreadsheet`  | Reads data from a range in a spreadsheet                 |
-| `querySpreadsheet` | Runs SQL-like read-only queries without modifying sheets |
-| `writeSpreadsheet` | Writes data to a range, overwriting existing values      |
-| `appendRows`       | Appends rows to the end of a sheet                       |
-| `clearRange`       | Clears all cell values in a range without deleting cells |
+| Tool                    | Description                                              |
+| ----------------------- | -------------------------------------------------------- |
+| `readSpreadsheet`       | Reads data from a range in a spreadsheet                 |
+| `querySpreadsheet`      | Runs SQL-like read-only queries without modifying sheets |
+| `batchQuerySpreadsheet` | Runs multiple read-only sheet queries in one MCP call    |
+| `writeSpreadsheet`      | Writes data to a range, overwriting existing values      |
+| `appendRows`            | Appends rows to the end of a sheet                       |
+| `clearRange`            | Clears all cell values in a range without deleting cells |
 
 ## Formatting & Validation
 

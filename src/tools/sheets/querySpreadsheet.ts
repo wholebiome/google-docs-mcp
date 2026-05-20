@@ -186,7 +186,16 @@ export function buildQueryUrl(args: {
   return url.toString();
 }
 
-async function addAccessToken(url: string, auth: Awaited<ReturnType<typeof getAuthClient>>) {
+export type SpreadsheetQueryArgs = {
+  spreadsheetId: string;
+  query: string;
+  sheetName?: string;
+  gid?: number;
+  range?: string;
+  headers?: number;
+};
+
+export async function addAccessToken(url: string, auth: Awaited<ReturnType<typeof getAuthClient>>) {
   const tokenResponse = await auth.getAccessToken();
   const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse?.token;
 
@@ -197,6 +206,18 @@ async function addAccessToken(url: string, auth: Awaited<ReturnType<typeof getAu
   const authenticatedUrl = new URL(url);
   authenticatedUrl.searchParams.set('access_token', accessToken);
   return authenticatedUrl.toString();
+}
+
+export async function runSpreadsheetQuery(
+  auth: Awaited<ReturnType<typeof getAuthClient>>,
+  args: SpreadsheetQueryArgs
+) {
+  const response = await auth.request<string>({
+    url: await addAccessToken(buildQueryUrl(args), auth),
+    method: 'GET',
+    responseType: 'text',
+  });
+  return normalizeGvizResponse(parseGvizJson(response.data));
 }
 
 export function register(server: FastMCP) {
@@ -247,17 +268,10 @@ export function register(server: FastMCP) {
       }),
     execute: async (args, { log }) => {
       const auth = await getAuthClient();
-      const url = buildQueryUrl(args);
       log.info(`Querying spreadsheet ${args.spreadsheetId}`);
 
       try {
-        const response = await auth.request<string>({
-          url: await addAccessToken(url, auth),
-          method: 'GET',
-          responseType: 'text',
-        });
-        const parsed = parseGvizJson(response.data);
-        return JSON.stringify(normalizeGvizResponse(parsed), null, 2);
+        return JSON.stringify(await runSpreadsheetQuery(auth, args), null, 2);
       } catch (error: any) {
         log.error(`Error querying spreadsheet ${args.spreadsheetId}: ${error.message || error}`);
         if (error instanceof UserError) throw error;

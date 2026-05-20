@@ -126,6 +126,7 @@ Tools across Google Docs, Sheets, and Drive:
 | ----------------------------- | --------------------------------------------------------------------- |
 | `readSpreadsheet`             | Read data from a range (A1 notation)                                  |
 | `querySpreadsheet`            | Run SQL-like read-only queries without modifying the sheet            |
+| `batchQuerySpreadsheet`       | Run multiple read-only sheet queries in one MCP call                  |
 | `writeSpreadsheet`            | Write data to a range                                                 |
 | `batchWrite`                  | Write to multiple ranges in one call                                  |
 | `appendRows`                  | Add rows to a sheet                                                   |
