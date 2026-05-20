@@ -195,17 +195,27 @@ export type SpreadsheetQueryArgs = {
   headers?: number;
 };
 
-export async function addAccessToken(url: string, auth: Awaited<ReturnType<typeof getAuthClient>>) {
-  const tokenResponse = await auth.getAccessToken();
-  const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse?.token;
+function looksLikeHtml(value: unknown) {
+  return (
+    typeof value === 'string' && /<\s*(?:!doctype\s+html|html|style|script|div)\b/i.test(value)
+  );
+}
 
-  if (!accessToken) {
-    throw new UserError('Google auth client did not provide an access token for the query.');
+export function spreadsheetQueryFailureMessage(error: any) {
+  const responseData = error?.response?.data;
+  if (looksLikeHtml(responseData) || looksLikeHtml(error?.message)) {
+    return 'Google Sheets returned an HTML sign-in page instead of query JSON. Check that the OAuth token has Sheets/Drive access and that the request is authenticated with a Bearer token.';
   }
 
-  const authenticatedUrl = new URL(url);
-  authenticatedUrl.searchParams.set('access_token', accessToken);
-  return authenticatedUrl.toString();
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData.trim();
+  }
+
+  if (isRecord(responseData)) {
+    return objectErrorMessage(responseData) || JSON.stringify(responseData);
+  }
+
+  return error?.message || 'Unknown error';
 }
 
 export async function runSpreadsheetQuery(
@@ -213,7 +223,7 @@ export async function runSpreadsheetQuery(
   args: SpreadsheetQueryArgs
 ) {
   const response = await auth.request<string>({
-    url: await addAccessToken(buildQueryUrl(args), auth),
+    url: buildQueryUrl(args),
     method: 'GET',
     responseType: 'text',
   });
@@ -283,7 +293,9 @@ export function register(server: FastMCP) {
             `Permission denied for spreadsheet (ID: ${args.spreadsheetId}). Ensure you have read access.`
           );
         }
-        throw new UserError(`Failed to query spreadsheet: ${error.message || 'Unknown error'}`);
+        throw new UserError(
+          `Failed to query spreadsheet: ${spreadsheetQueryFailureMessage(error)}`
+        );
       }
     },
   });

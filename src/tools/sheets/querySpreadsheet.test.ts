@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { buildQueryUrl, normalizeGvizResponse, parseGvizJson } from './querySpreadsheet.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  buildQueryUrl,
+  normalizeGvizResponse,
+  parseGvizJson,
+  runSpreadsheetQuery,
+  spreadsheetQueryFailureMessage,
+} from './querySpreadsheet.js';
 
 describe('buildQueryUrl', () => {
   it('encodes the query and range parameters', () => {
@@ -113,6 +119,39 @@ describe('parseGvizJson', () => {
 
   it('rejects unsupported object responses instead of treating them as empty results', () => {
     expect(() => parseGvizJson({ html: '<p>Sign in</p>' })).toThrow('unsupported object response');
+  });
+});
+
+describe('runSpreadsheetQuery', () => {
+  it('authenticates through the Google auth client instead of adding access_token to the URL', async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: '{"status":"ok","table":{"cols":[],"rows":[]}}',
+    });
+
+    await runSpreadsheetQuery({ request } as any, {
+      spreadsheetId: 'spreadsheet-id',
+      sheetName: 'Tasks',
+      query: 'select A',
+    });
+
+    const requestArgs = request.mock.calls[0][0];
+    const url = new URL(requestArgs.url);
+    expect(url.searchParams.has('access_token')).toBe(false);
+    expect(requestArgs).toMatchObject({
+      method: 'GET',
+      responseType: 'text',
+    });
+  });
+});
+
+describe('spreadsheetQueryFailureMessage', () => {
+  it('summarizes Google sign-in HTML without echoing the whole page', () => {
+    const message = spreadsheetQueryFailureMessage({
+      response: { data: '<!DOCTYPE html><div class="login">Sign in</div>' },
+    });
+
+    expect(message).toContain('HTML sign-in page');
+    expect(message).not.toContain('<!DOCTYPE html>');
   });
 });
 

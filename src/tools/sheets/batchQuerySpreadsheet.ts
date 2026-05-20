@@ -2,7 +2,7 @@ import type { FastMCP } from 'fastmcp';
 import { UserError } from 'fastmcp';
 import { z } from 'zod';
 import { getAuthClient } from '../../clients.js';
-import { runSpreadsheetQuery } from './querySpreadsheet.js';
+import { runSpreadsheetQuery, spreadsheetQueryFailureMessage } from './querySpreadsheet.js';
 
 const queryParameters = z
   .object({
@@ -122,7 +122,7 @@ export function register(server: FastMCP) {
           );
         }
         throw new UserError(
-          `Failed to batch query spreadsheet: ${error.message || 'Unknown error'}`
+          `Failed to batch query spreadsheet: ${spreadsheetQueryFailureMessage(error)}`
         );
       }
     },
