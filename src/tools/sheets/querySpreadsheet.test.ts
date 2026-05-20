@@ -104,4 +104,22 @@ describe('parseGvizJson', () => {
   it('throws a UserError for empty responses instead of calling trim', () => {
     expect(() => parseGvizJson(undefined)).toThrow('Query returned an empty response');
   });
+
+  it('throws Google API error object messages instead of treating them as empty results', () => {
+    expect(() => parseGvizJson({ error: { message: 'Invalid Credentials' } })).toThrow(
+      'Spreadsheet query failed: Invalid Credentials'
+    );
+  });
+
+  it('rejects unsupported object responses instead of treating them as empty results', () => {
+    expect(() => parseGvizJson({ html: '<p>Sign in</p>' })).toThrow('unsupported object response');
+  });
+});
+
+describe('normalizeGvizResponse error handling', () => {
+  it('throws when a successful-looking response has no table payload', () => {
+    expect(() => normalizeGvizResponse({ status: 'ok' })).toThrow(
+      'Spreadsheet query response did not include a result table'
+    );
+  });
 });

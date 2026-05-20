@@ -30,9 +30,40 @@ type GvizResponse = {
   };
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Buffer.isBuffer(value);
+}
+
+function objectErrorMessage(responseData: Record<string, unknown>) {
+  const error = responseData.error;
+
+  if (typeof error === 'string') return error;
+  if (isRecord(error)) {
+    const message = error.message;
+    const status = error.status;
+    if (typeof message === 'string') return message;
+    if (typeof status === 'string') return status;
+  }
+
+  return undefined;
+}
+
 export function parseGvizJson(responseData: unknown): GvizResponse {
-  if (responseData && typeof responseData === 'object' && !Buffer.isBuffer(responseData)) {
-    return responseData as GvizResponse;
+  if (isRecord(responseData)) {
+    const errorMessage = objectErrorMessage(responseData);
+    if (errorMessage) {
+      throw new UserError(`Spreadsheet query failed: ${errorMessage}`);
+    }
+
+    if ('table' in responseData || 'status' in responseData || 'errors' in responseData) {
+      return responseData as GvizResponse;
+    }
+
+    throw new UserError(
+      `Query returned an unsupported object response from Google Sheets: ${Object.keys(responseData)
+        .slice(0, 5)
+        .join(', ')}.`
+    );
   }
 
   if (responseData === null || responseData === undefined) {
@@ -50,12 +81,17 @@ export function parseGvizJson(responseData: unknown): GvizResponse {
   const trimmed = responseText.trim().replace(/^\/\*O_o\*\/\s*/, '');
   const prefix = 'google.visualization.Query.setResponse(';
 
+  if (!trimmed) {
+    throw new UserError('Query returned an empty response from Google Sheets.');
+  }
+
   if (trimmed.startsWith(prefix) && trimmed.endsWith(');')) {
     return JSON.parse(trimmed.slice(prefix.length, -2)) as GvizResponse;
   }
 
   if (trimmed.startsWith('{')) {
-    return JSON.parse(trimmed) as GvizResponse;
+    const parsed = JSON.parse(trimmed) as unknown;
+    return parseGvizJson(parsed);
   }
 
   throw new UserError('Query returned an unexpected response format from Google Sheets.');
@@ -85,11 +121,15 @@ export function normalizeGvizResponse(response: GvizResponse) {
     throw new UserError(`Spreadsheet query failed: ${message}`);
   }
 
+  if (!response.table) {
+    throw new UserError('Spreadsheet query response did not include a result table.');
+  }
+
   const usedKeys = new Set<string>();
-  const columns = response.table?.cols || [];
+  const columns = response.table.cols || [];
   const objectKeys = columns.map((column, index) => columnKey(column, index, usedKeys));
 
-  const rows = (response.table?.rows || []).map((row) => {
+  const rows = (response.table.rows || []).map((row) => {
     const values = columns.map((_, index) => row.c?.[index]?.v ?? null);
     const formattedValues = columns.map((_, index) => row.c?.[index]?.f ?? null);
     const object = Object.fromEntries(objectKeys.map((key, index) => [key, values[index]]));
@@ -214,6 +254,7 @@ export function register(server: FastMCP) {
         const response = await auth.request<string>({
           url: await addAccessToken(url, auth),
           method: 'GET',
+          responseType: 'text',
         });
         const parsed = parseGvizJson(response.data);
         return JSON.stringify(normalizeGvizResponse(parsed), null, 2);
