@@ -30,6 +30,9 @@ type GvizResponse = {
   };
 };
 
+export type QueryResponseFormat = 'rich' | 'values';
+export type NormalizedGvizResponse = ReturnType<typeof normalizeGvizResponse>;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Buffer.isBuffer(value);
 }
@@ -154,6 +157,29 @@ export function normalizeGvizResponse(response: GvizResponse) {
   };
 }
 
+export function formatSpreadsheetQueryResult(
+  result: NormalizedGvizResponse,
+  responseFormat: QueryResponseFormat = 'rich'
+) {
+  if (responseFormat === 'values') {
+    const values = [
+      result.columns.map((column) => column.key || column.label || column.id),
+      ...result.rows.map((row) => row.values),
+    ];
+
+    return {
+      values,
+      ...(result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+    };
+  }
+
+  return result;
+}
+
+export function stringifyToolResult(payload: unknown, pretty = true) {
+  return JSON.stringify(payload, null, pretty ? 2 : 0);
+}
+
 function applyRangeDefaults(range: string | undefined, sheetName: string | undefined) {
   if (!range) return { range, sheetName };
 
@@ -271,6 +297,16 @@ export function register(server: FastMCP) {
           .min(0)
           .optional()
           .describe('Optional number of header rows. Use 0 when the range has no header row.'),
+        responseFormat: z
+          .enum(['rich', 'values'])
+          .optional()
+          .describe(
+            'Output shape. "rich" preserves the default columns/rows/object response. "values" returns a compact 2D values array with a header row.'
+          ),
+        pretty: z
+          .boolean()
+          .optional()
+          .describe('Pretty-print JSON output. Defaults to true; set false for smaller responses.'),
       })
       .refine((args) => !(args.sheetName && args.gid !== undefined), {
         message: 'Provide either sheetName or gid, not both.',
@@ -279,9 +315,11 @@ export function register(server: FastMCP) {
     execute: async (args, { log }) => {
       const auth = await getAuthClient();
       log.info(`Querying spreadsheet ${args.spreadsheetId}`);
+      const { responseFormat = 'rich', pretty = true, ...queryArgs } = args;
 
       try {
-        return JSON.stringify(await runSpreadsheetQuery(auth, args), null, 2);
+        const result = await runSpreadsheetQuery(auth, queryArgs);
+        return stringifyToolResult(formatSpreadsheetQueryResult(result, responseFormat), pretty);
       } catch (error: any) {
         log.error(`Error querying spreadsheet ${args.spreadsheetId}: ${error.message || error}`);
         if (error instanceof UserError) throw error;

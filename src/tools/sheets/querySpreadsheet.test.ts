@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildQueryUrl,
+  formatSpreadsheetQueryResult,
   normalizeGvizResponse,
   parseGvizJson,
   runSpreadsheetQuery,
   spreadsheetQueryFailureMessage,
+  stringifyToolResult,
 } from './querySpreadsheet.js';
 
 describe('buildQueryUrl', () => {
@@ -83,6 +85,26 @@ describe('normalizeGvizResponse', () => {
     expect(result.columns.map((column) => column.key)).toEqual(['Value', 'Value_2']);
     expect(result.rows[0].object).toEqual({ Value: 1, Value_2: 2 });
   });
+
+  it('can format normalized query results as compact values', () => {
+    const result = normalizeGvizResponse({
+      status: 'ok',
+      table: {
+        cols: [
+          { id: 'A', label: 'Name', type: 'string' },
+          { id: 'count-A', label: 'count ', type: 'number' },
+        ],
+        rows: [{ c: [{ v: 'Ada' }, { v: 42 }] }],
+      },
+    });
+
+    expect(formatSpreadsheetQueryResult(result, 'values')).toEqual({
+      values: [
+        ['Name', 'count '],
+        ['Ada', 42],
+      ],
+    });
+  });
 });
 
 describe('parseGvizJson', () => {
@@ -152,6 +174,12 @@ describe('spreadsheetQueryFailureMessage', () => {
 
     expect(message).toContain('HTML sign-in page');
     expect(message).not.toContain('<!DOCTYPE html>');
+  });
+});
+
+describe('stringifyToolResult', () => {
+  it('can emit compact JSON for latency-sensitive MCP responses', () => {
+    expect(stringifyToolResult({ values: [['A'], ['x']] }, false)).toBe('{"values":[["A"],["x"]]}');
   });
 });
 

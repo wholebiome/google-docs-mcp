@@ -219,6 +219,12 @@ Tools across Google Docs, Sheets, and Drive:
 
 ---
 
+### Fast Query Responses
+
+`querySpreadsheet` and `batchQuerySpreadsheet` support `responseFormat: "values"` for dashboard-style calls that only need compact 2D arrays. Combine it with `pretty: false`, and with `includeQuery: false` on `batchQuerySpreadsheet`, to minimize MCP response size while preserving the default rich response for existing callers. Batch queries default to a Google request concurrency of 3 for steadier GViz responses, with `maxConcurrency` available when needed.
+
+---
+
 ## Usage Examples
 
 ### Google Docs

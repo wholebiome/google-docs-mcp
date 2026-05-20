@@ -29,3 +29,7 @@ Tools for reading, writing, and managing Google Spreadsheets, including cell dat
 | `addSheet`           | Adds a new sheet (tab) to an existing spreadsheet      |
 | `createSpreadsheet`  | Creates a new spreadsheet                              |
 | `listSpreadsheets`   | Lists spreadsheets in your Drive                       |
+
+## Query Output
+
+`querySpreadsheet` and `batchQuerySpreadsheet` default to the rich normalized response shape with `columns`, `rows`, `formattedValues`, and keyed `object` values. For latency-sensitive dashboards, pass `responseFormat: "values"` to return compact 2D arrays with a header row. Pass `pretty: false` to minify the JSON response, and pass `includeQuery: false` to `batchQuerySpreadsheet` when callers do not need the original query strings echoed back. `batchQuerySpreadsheet` runs at most 3 Google Visualization requests at once by default to avoid transient Google sign-in/rate-limit responses; callers can set `maxConcurrency` when they need a different limit.

@@ -2,7 +2,13 @@ import type { FastMCP } from 'fastmcp';
 import { UserError } from 'fastmcp';
 import { z } from 'zod';
 import { getAuthClient } from '../../clients.js';
-import { runSpreadsheetQuery, spreadsheetQueryFailureMessage } from './querySpreadsheet.js';
+import {
+  formatSpreadsheetQueryResult,
+  type NormalizedGvizResponse,
+  runSpreadsheetQuery,
+  spreadsheetQueryFailureMessage,
+  stringifyToolResult,
+} from './querySpreadsheet.js';
 
 const queryParameters = z
   .object({
@@ -42,6 +48,28 @@ const queryParameters = z
     path: ['gid'],
   });
 
+async function mapWithConcurrency<T, U>(
+  items: T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<U>
+) {
+  const results = new Array<U>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(limit, items.length);
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index], index);
+      }
+    })
+  );
+
+  return results;
+}
+
 export function register(server: FastMCP) {
   server.addTool({
     name: 'batchQuerySpreadsheet',
@@ -73,6 +101,29 @@ export function register(server: FastMCP) {
           .min(0)
           .optional()
           .describe('Default number of header rows for all queries unless a query overrides it.'),
+        responseFormat: z
+          .enum(['rich', 'values'])
+          .optional()
+          .describe(
+            'Output shape for each result. "rich" preserves the default columns/rows/object response. "values" returns compact 2D values arrays with header rows.'
+          ),
+        includeQuery: z
+          .boolean()
+          .optional()
+          .describe('Include each original query string in the response. Defaults to true.'),
+        pretty: z
+          .boolean()
+          .optional()
+          .describe('Pretty-print JSON output. Defaults to true; set false for smaller responses.'),
+        maxConcurrency: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe(
+            'Maximum number of Google Visualization requests to run at once. Defaults to 3 to avoid transient Google sign-in/rate-limit responses.'
+          ),
         queries: z
           .array(queryParameters)
           .min(1)
@@ -86,28 +137,44 @@ export function register(server: FastMCP) {
     execute: async (args, { log }) => {
       const auth = await getAuthClient();
       log.info(`Batch querying spreadsheet ${args.spreadsheetId}: ${args.queries.length} queries`);
+      const responseFormat = args.responseFormat ?? 'rich';
+      const includeQuery = args.includeQuery ?? true;
+      const pretty = args.pretty ?? true;
+      const maxConcurrency = args.maxConcurrency ?? 3;
 
       try {
-        const results = await Promise.all(
-          args.queries.map(async (query, index) => {
-            const result = await runSpreadsheetQuery(auth, {
+        const results = await mapWithConcurrency(
+          args.queries,
+          maxConcurrency,
+          async (query, index) => {
+            const queryArgs = {
               spreadsheetId: args.spreadsheetId,
               query: query.query,
               sheetName: query.sheetName ?? args.sheetName,
               gid: query.gid ?? args.gid,
               range: query.range ?? args.range,
               headers: query.headers ?? args.headers,
-            });
+            };
+            let result: NormalizedGvizResponse;
+            try {
+              result = await runSpreadsheetQuery(auth, queryArgs);
+            } catch (error: any) {
+              if (spreadsheetQueryFailureMessage(error).includes('HTML sign-in page')) {
+                result = await runSpreadsheetQuery(auth, queryArgs);
+              } else {
+                throw error;
+              }
+            }
 
             return {
               id: query.id ?? String(index + 1),
-              query: query.query,
-              ...result,
+              ...(includeQuery ? { query: query.query } : {}),
+              ...formatSpreadsheetQueryResult(result, responseFormat),
             };
-          })
+          }
         );
 
-        return JSON.stringify({ spreadsheetId: args.spreadsheetId, results }, null, 2);
+        return stringifyToolResult({ spreadsheetId: args.spreadsheetId, results }, pretty);
       } catch (error: any) {
         log.error(
           `Error batch querying spreadsheet ${args.spreadsheetId}: ${error.message || error}`
