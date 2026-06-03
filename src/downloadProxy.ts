@@ -5,7 +5,8 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import type { FastMCP } from 'fastmcp';
 
-interface PendingDownload {
+interface PendingDriveDownload {
+  kind?: 'drive';
   fileId: string;
   accessToken: string;
   exportMime?: string;
@@ -15,6 +16,22 @@ interface PendingDownload {
   expiresAt: number;
 }
 
+interface PendingGmailAttachmentDownload {
+  kind: 'gmailAttachment';
+  messageId: string;
+  attachmentId: string;
+  accessToken: string;
+  fileName: string;
+  mimeType: string;
+  maxBytes?: number;
+  expiresAt: number;
+}
+
+type PendingDownload = PendingDriveDownload | PendingGmailAttachmentDownload;
+type DownloadTokenInput =
+  | Omit<PendingDriveDownload, 'expiresAt'>
+  | Omit<PendingGmailAttachmentDownload, 'expiresAt'>;
+
 const pending = new Map<string, PendingDownload>();
 
 setInterval(() => {
@@ -22,7 +39,7 @@ setInterval(() => {
   for (const [k, v] of pending) if (v.expiresAt < now) pending.delete(k);
 }, 60_000).unref();
 
-export function createDownloadToken(opts: Omit<PendingDownload, 'expiresAt'>): string {
+export function createDownloadToken(opts: DownloadTokenInput): string {
   const token = crypto.randomUUID();
   pending.set(token, { ...opts, expiresAt: Date.now() + 5 * 60 * 1000 });
   return token;
@@ -40,12 +57,35 @@ export function registerDownloadRoute(server: FastMCP): void {
 
     const auth = new OAuth2Client();
     auth.setCredentials({ access_token: entry.accessToken });
-    const drive = google.drive({ version: 'v3', auth });
 
     c.header(
       'Content-Disposition',
       `attachment; filename="${entry.fileName.replace(/"/g, '\\"')}"`
     );
+
+    if (entry.kind === 'gmailAttachment') {
+      c.header('Content-Type', entry.mimeType);
+      const gmail = google.gmail({ version: 'v1', auth });
+      const res = await gmail.users.messages.attachments.get({
+        userId: 'me',
+        messageId: entry.messageId,
+        id: entry.attachmentId,
+      });
+      const buffer = Buffer.from(res.data.data ?? '', 'base64url');
+      if (entry.maxBytes && buffer.length > entry.maxBytes) {
+        return c.text(
+          `Attachment is ${buffer.length} bytes, which exceeds maxBytes (${entry.maxBytes}).`,
+          413
+        );
+      }
+      c.header('Content-Length', String(buffer.length));
+      const webStream = Readable.toWeb(Readable.from(buffer)) as ReadableStream;
+      return stream(c, async (s) => {
+        await s.pipe(webStream);
+      });
+    }
+
+    const drive = google.drive({ version: 'v3', auth });
 
     if (entry.isWorkspace && entry.exportMime) {
       c.header('Content-Type', entry.exportMime);
