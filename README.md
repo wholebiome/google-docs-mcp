@@ -195,6 +195,7 @@ Tools across Google Docs, Sheets, and Drive:
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `listMessages`        | List or search messages using Gmail query syntax (`is:unread`, `from:`, `newer_than:`, etc.)                                |
 | `getMessage`          | Fetch a single message with decoded headers, plain-text body, HTML body, and attachment metadata                            |
+| `getAttachment`       | Fetch attachment bytes by `messageId` and `attachmentId`, returning base64 or UTF-8 text for CSV/text files                 |
 | `sendEmail`           | Send a plain-text email. Supports cc/bcc and threaded replies via `replyToMessageId`                                        |
 | `trashMessage`        | Move a message to Trash (reversible, same as clicking Delete in the Gmail UI)                                               |
 | `modifyMessageLabels` | Add or remove labels on a message — use to star, archive (remove `INBOX`), mark read (remove `UNREAD`)                      |
@@ -479,7 +480,6 @@ Without `GOOGLE_MCP_PROFILE`, behavior is unchanged.
 - **Markdown tables/images:** Not yet supported in the markdown-to-Docs conversion.
 - **Deeply nested lists:** Lists with 3+ nesting levels may have formatting quirks.
 - **Gmail hard delete:** `trashMessage` moves messages to Trash (reversible). Permanent deletion requires the broader `https://mail.google.com/` scope and is not exposed in v0.1.
-- **Gmail attachments:** `getMessage` returns attachment metadata but does not download attachment bytes yet.
 - **Gmail HTML email send:** `sendEmail` sends plain-text only. For HTML bodies, paste HTML into the `body` field — it will be delivered as text, not rendered.
 - **Calendar scope:** `calendar.events` permits event CRUD on existing calendars but cannot create or delete entire calendars themselves.
 - **Calendar recurring events:** `updateEvent` and `deleteEvent` modify the entire recurring series unless you target a specific instance ID returned by `listEvents` with `singleEvents=true`.

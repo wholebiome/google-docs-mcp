@@ -46,6 +46,7 @@ describe('destructive tool registration', () => {
     expect(toolNames).toEqual(
       expect.arrayContaining(['deleteFile', 'trashMessage', 'deleteEvent'])
     );
+    expect(toolNames).toEqual(expect.arrayContaining(['getAttachment']));
   });
 
   it('hides delete and trash tools when disabled', () => {

@@ -23,14 +23,14 @@ Each domain folder contains:
 
 ## Domains
 
-| Domain                  | Tools | Description                                                      |
-| ----------------------- | ----: | ---------------------------------------------------------------- |
-| [docs](./docs/)         |    14 | Read, write, format, and comment on Google Documents             |
-| [drive](./drive/)       |    12 | Search, create, move, copy, rename, and delete files and folders |
-| [sheets](./sheets/)     |    11 | Read, write, append, format, validate, and manage spreadsheets   |
-| [gmail](./gmail/)       |    13 | Read, send, draft, label, trash, and triage Gmail messages       |
-| [calendar](./calendar/) |     5 | List, create, update, delete, and quick-add Calendar events      |
-| [utils](./utils/)       |     2 | Markdown conversion and other cross-cutting workflows            |
+| Domain                  | Tools | Description                                                             |
+| ----------------------- | ----: | ----------------------------------------------------------------------- |
+| [docs](./docs/)         |    14 | Read, write, format, and comment on Google Documents                    |
+| [drive](./drive/)       |    12 | Search, create, move, copy, rename, and delete files and folders        |
+| [sheets](./sheets/)     |    11 | Read, write, append, format, validate, and manage spreadsheets          |
+| [gmail](./gmail/)       |    14 | Read, send, draft, label, trash, attachments, and triage Gmail messages |
+| [calendar](./calendar/) |     5 | List, create, update, delete, and quick-add Calendar events             |
+| [utils](./utils/)       |     2 | Markdown conversion and other cross-cutting workflows                   |
 
 ## Adding a New Tool
 

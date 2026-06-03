@@ -8,10 +8,19 @@ Tools for reading, drafting, sending, deleting, organizing, and triaging Gmail m
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
 | `listMessages`        | Lists or searches messages using the full Gmail query syntax (e.g. `is:unread from:foo newer_than:7d`)   |
 | `getMessage`          | Fetches a single message with decoded headers, plain-text body, HTML body, and attachment metadata       |
+| `getAttachment`       | Fetches Gmail attachment bytes by `messageId` and `attachmentId`, returning base64 or UTF-8 text         |
 | `sendEmail`           | Sends a plain-text email; supports cc/bcc and threaded replies via `replyToMessageId`                    |
 | `trashMessage`        | Moves a message to Trash (reversible from the Gmail UI Trash folder for 30 days). Not a permanent delete |
 | `modifyMessageLabels` | Adds and/or removes labels on a message — used for star, archive, mark read, and custom-label tagging    |
 | `listLabels`          | Lists all system and user-created Gmail labels with their IDs, for use with the other tools              |
+
+## Attachments
+
+Use `listMessages` with a query such as `has:attachment filename:csv`, then call
+`getMessage` with `format="full"` to inspect `attachments[].attachmentId`. Pass
+that `messageId` and `attachmentId` to `getAttachment`. The default
+`returnFormat="base64"` is safe for any file type; use `returnFormat="text"` for
+CSV or other UTF-8 text attachments.
 
 ## Drafts (compose / review / send)
 
