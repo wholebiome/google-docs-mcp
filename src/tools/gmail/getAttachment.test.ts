@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decodeBase64UrlToBuffer } from './helpers.js';
 import {
-  attachmentResourceResult,
+  buildAttachmentContentResult,
   formatAttachmentContent,
   stringifyAttachmentResult,
 } from './getAttachment.js';
@@ -38,28 +38,39 @@ describe('Gmail attachment content helpers', () => {
     );
   });
 
-  it('formats binary attachments as MCP resources without exposing content.data JSON', () => {
-    const result = attachmentResourceResult({
+  it('formats binary attachments with direct top-level base64 data', () => {
+    const result = buildAttachmentContentResult({
       messageId: 'm1',
       attachmentId: 'a1',
       filename: 'invoice.pdf',
       mimeType: 'application/pdf',
       buffer: Buffer.from('%PDF-test'),
+      returnFormat: 'base64',
     });
 
-    expect(result.content[0]).toMatchObject({
-      type: 'resource',
-      resource: {
-        uri: 'gmail:///m1/a1/invoice.pdf',
-        blob: Buffer.from('%PDF-test').toString('base64'),
-        mimeType: 'application/pdf',
-      },
-    });
-    expect(result.content[1]).toMatchObject({ type: 'text' });
-    expect(JSON.parse(result.content[1].text)).toMatchObject({
-      resultMode: 'resource',
-      filename: 'invoice.pdf',
+    expect(result).toMatchObject({
+      resultMode: 'content',
+      suggestedFilename: 'invoice.pdf',
       mimeType: 'application/pdf',
+      encoding: 'base64',
+      dataField: 'dataBase64',
+      dataBase64: Buffer.from('%PDF-test').toString('base64'),
     });
+    expect(result).not.toHaveProperty('content');
+    expect(result.agentInstructions.join(' ')).toContain('dataBase64');
+    expect(result.agentInstructions.join(' ')).toContain('Do not search for content.data');
+  });
+
+  it('adds a MIME-derived extension when the filename has none', () => {
+    const result = buildAttachmentContentResult({
+      messageId: 'm1',
+      attachmentId: 'a1',
+      filename: 'dashboard-snapshot',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-test'),
+      returnFormat: 'base64',
+    });
+
+    expect(result.suggestedFilename).toBe('dashboard-snapshot.pdf');
   });
 });

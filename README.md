@@ -195,7 +195,7 @@ Tools across Google Docs, Sheets, and Drive:
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `listMessages`                     | List or search messages using Gmail query syntax (`is:unread`, `from:`, `newer_than:`, etc.)                                |
 | `getMessage`                       | Fetch a single message with decoded headers, plain-text body, HTML body, and attachment metadata                            |
-| `getAttachment`                    | Fetch attachment content by `messageId` and `attachmentId`; remote mode returns an MCP resource by default                  |
+| `getAttachment`                    | Fetch attachment content by `messageId` and `attachmentId`; returns direct `dataBase64`/`dataText` for local saving         |
 | `importCsvAttachmentToSpreadsheet` | Import a CSV Gmail attachment directly into Google Sheets without returning the CSV through model context                   |
 | `sendEmail`                        | Send a plain-text email. Supports cc/bcc and threaded replies via `replyToMessageId`                                        |
 | `trashMessage`                     | Move a message to Trash (reversible, same as clicking Delete in the Gmail UI)                                               |

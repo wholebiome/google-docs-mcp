@@ -8,9 +8,17 @@ import { requestClients } from '../../remoteWrapper.js';
 import { decodeBase64UrlToBuffer } from './helpers.js';
 
 type AttachmentReturnFormat = 'base64' | 'text';
-type AttachmentReturnAs = 'resource' | 'url' | 'content';
+type AttachmentReturnAs = 'url' | 'content';
 const isRemote = process.env.MCP_TRANSPORT === 'httpStream';
-const MAX_RESOURCE_BYTES = 25 * 1024 * 1024;
+
+const MIME_EXTENSION_HINTS: Record<string, string> = {
+  'application/pdf': '.pdf',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'text/csv': '.csv',
+  'text/plain': '.txt',
+  'application/json': '.json',
+};
 
 export function formatAttachmentContent(buffer: Buffer, returnFormat: AttachmentReturnFormat) {
   if (returnFormat === 'text') {
@@ -30,45 +38,52 @@ export function stringifyAttachmentResult(result: unknown, pretty: boolean | und
   return JSON.stringify(result, null, pretty === false ? 0 : 2);
 }
 
-function safeAttachmentFileName(name?: string | null): string {
+function safeAttachmentFileName(name?: string | null, mimeType?: string | null): string {
   const cleaned = (name || 'gmail-attachment').replace(/[\\/\0\r\n\t]/g, '_').trim();
-  return cleaned || 'gmail-attachment';
+  const safeName = cleaned || 'gmail-attachment';
+  if (safeName.includes('.')) return safeName;
+
+  const extension = mimeType ? MIME_EXTENSION_HINTS[mimeType] : undefined;
+  return extension ? `${safeName}${extension}` : safeName;
 }
 
-export function attachmentResourceResult(args: {
+export function buildAttachmentContentResult(args: {
   messageId: string;
   attachmentId: string;
   filename?: string | null;
   mimeType?: string | null;
   buffer: Buffer;
   declaredSize?: number;
+  returnFormat: AttachmentReturnFormat;
 }) {
-  const fileName = safeAttachmentFileName(args.filename);
   const mimeType = args.mimeType ?? 'application/octet-stream';
+  const suggestedFilename = safeAttachmentFileName(args.filename, mimeType);
+  const content = formatAttachmentContent(args.buffer, args.returnFormat);
+  const isBase64 = content.encoding === 'base64';
 
   return {
-    content: [
-      {
-        type: 'resource' as const,
-        resource: {
-          uri: `gmail:///${encodeURIComponent(args.messageId)}/${encodeURIComponent(args.attachmentId)}/${encodeURIComponent(fileName)}`,
-          blob: args.buffer.toString('base64'),
-          mimeType,
-        },
-      },
-      {
-        type: 'text' as const,
-        text: JSON.stringify({
-          resultMode: 'resource',
-          messageId: args.messageId,
-          attachmentId: args.attachmentId,
-          filename: fileName,
-          mimeType,
-          size: args.declaredSize ?? args.buffer.length,
-          decodedSize: args.buffer.length,
-        }),
-      },
-    ],
+    resultMode: 'content',
+    messageId: args.messageId,
+    attachmentId: args.attachmentId,
+    filename: args.filename ?? null,
+    suggestedFilename,
+    mimeType,
+    size: args.declaredSize ?? args.buffer.length,
+    decodedSize: args.buffer.length,
+    encoding: content.encoding,
+    dataField: isBase64 ? 'dataBase64' : 'dataText',
+    ...(isBase64 ? { dataBase64: content.data } : { dataText: content.data }),
+    agentInstructions: isBase64
+      ? [
+          'The attachment bytes are already fetched in the top-level dataBase64 field.',
+          `Decode dataBase64 as base64 and write the bytes to ${suggestedFilename}.`,
+          'Do not search for content.data; this response intentionally avoids a nested content wrapper.',
+        ]
+      : [
+          'The attachment text is already fetched in the top-level dataText field.',
+          `Write dataText as UTF-8 text to ${suggestedFilename}.`,
+          'Do not search for content.data; this response intentionally avoids a nested content wrapper.',
+        ],
   };
 }
 
@@ -110,7 +125,7 @@ export function register(server: FastMCP) {
   server.addTool({
     name: 'getAttachment',
     description:
-      'Fetches a Gmail message attachment by messageId and attachmentId. Use getMessage first to discover attachment IDs. In remote mode it returns an MCP resource by default so PDF/image/binary attachments are delivered as file-like content instead of a user-facing URL or JSON base64.',
+      'Fetches a Gmail message attachment by messageId and attachmentId. Use getMessage first to discover attachment IDs. Returns attachment bytes as direct top-level dataBase64 by default so agents can decode PDFs/images/binary files in one step. For CSV-to-Sheets workflows, use importCsvAttachmentToSpreadsheet instead of routing CSV content through model context.',
     parameters: z.object({
       messageId: z.string().describe('The Gmail message ID that owns the attachment.'),
       attachmentId: z
@@ -125,10 +140,10 @@ export function register(server: FastMCP) {
         .optional()
         .describe('Optional MIME type from getMessage, echoed back for caller bookkeeping.'),
       returnAs: z
-        .enum(['resource', 'url', 'content'])
+        .enum(['url', 'content'])
         .optional()
         .describe(
-          'Remote mode default is "resource" so attachments are delivered as MCP resource content. Stdio mode default is "content". Use "url" only when the caller can fetch links itself; use "content" only for small text/base64 responses.'
+          'Default is "content": returns direct top-level dataBase64/dataText for the agent to write locally. Use "url" only in remote mode when the caller can fetch links itself.'
         ),
       returnFormat: z
         .enum(['base64', 'text'])
@@ -154,7 +169,7 @@ export function register(server: FastMCP) {
     execute: async (args, { log }) => {
       const gmail = await getGmailClient();
       log.info(`Getting Gmail attachment ${args.attachmentId} from message ${args.messageId}`);
-      const returnAs: AttachmentReturnAs = args.returnAs ?? (isRemote ? 'resource' : 'content');
+      const returnAs: AttachmentReturnAs = args.returnAs ?? 'content';
 
       try {
         if (returnAs === 'url') {
@@ -195,34 +210,16 @@ export function register(server: FastMCP) {
           args.maxBytes
         );
 
-        if (returnAs === 'resource') {
-          if (buffer.length > MAX_RESOURCE_BYTES) {
-            throw new UserError(
-              `Attachment is too large for MCP resource transfer (${(buffer.length / 1024 / 1024).toFixed(1)}MB, limit ${(MAX_RESOURCE_BYTES / 1024 / 1024).toFixed(0)}MB). For CSV files use importCsvAttachmentToSpreadsheet; otherwise request returnAs="url" from a client that can fetch URLs.`
-            );
-          }
-
-          return attachmentResourceResult({
+        return stringifyAttachmentResult(
+          buildAttachmentContentResult({
             messageId: args.messageId,
             attachmentId: args.attachmentId,
             filename: args.filename,
             mimeType: args.mimeType,
             buffer,
             declaredSize,
-          });
-        }
-
-        return stringifyAttachmentResult(
-          {
-            resultMode: 'content',
-            messageId: args.messageId,
-            attachmentId: args.attachmentId,
-            filename: args.filename ?? null,
-            mimeType: args.mimeType ?? null,
-            size: declaredSize ?? buffer.length,
-            decodedSize: buffer.length,
-            content: formatAttachmentContent(buffer, args.returnFormat),
-          },
+            returnFormat: args.returnFormat,
+          }),
           args.pretty
         );
       } catch (error: any) {

@@ -8,7 +8,7 @@ Tools for reading, drafting, sending, deleting, organizing, and triaging Gmail m
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `listMessages`                     | Lists or searches messages using the full Gmail query syntax (e.g. `is:unread from:foo newer_than:7d`)      |
 | `getMessage`                       | Fetches a single message with decoded headers, plain-text body, HTML body, and attachment metadata          |
-| `getAttachment`                    | Fetches Gmail attachments by `messageId` and `attachmentId`; remote mode returns an MCP resource by default |
+| `getAttachment`                    | Fetches Gmail attachments by `messageId` and `attachmentId`; returns direct `dataBase64`/`dataText` content |
 | `importCsvAttachmentToSpreadsheet` | Imports a CSV Gmail attachment directly into Google Sheets without returning CSV content to the model       |
 | `sendEmail`                        | Sends a plain-text email; supports cc/bcc and threaded replies via `replyToMessageId`                       |
 | `trashMessage`                     | Moves a message to Trash (reversible from the Gmail UI Trash folder for 30 days). Not a permanent delete    |
@@ -21,12 +21,12 @@ Use `listMessages` with a query such as `has:attachment filename:csv`, then call
 `getMessage` with `format="full"` to inspect `attachments[].attachmentId`.
 
 For ordinary downloads, pass that `messageId` and `attachmentId` to
-`getAttachment`. In remote mode, `getAttachment` returns an MCP `resource` by
-default so PDFs, images, and other binary files are delivered as file-like
-content instead of a human-facing download link or JSON `content.data` blob. Use
-`returnAs="url"` only when the caller can fetch links itself, and
-`returnAs="content"` only for small attachments that should be returned inline as
-text/base64 JSON.
+`getAttachment`. By default, it returns attachment data in a direct top-level
+field: `dataBase64` for PDFs, images, and other binary files, or `dataText` when
+`returnFormat="text"`. To save a PDF or other binary attachment, decode
+`dataBase64` once and write the bytes to `suggestedFilename`; do not search for a
+nested `content.data` field. Use `returnAs="url"` only when the caller can fetch
+links itself.
 
 For CSV-to-Sheets workflows, prefer `importCsvAttachmentToSpreadsheet`. It
 fetches the attachment, parses CSV server-side, writes rows to Sheets in chunks,
