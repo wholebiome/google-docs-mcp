@@ -1,6 +1,6 @@
 # Google Docs MCP Server
 
-FastMCP server with 94 tools for Google Docs, Sheets, Drive, Gmail, and Calendar.
+FastMCP server with 96 tools for Google Docs, Sheets, Drive, Gmail, and Calendar.
 
 ## Tool Categories
 
@@ -14,7 +14,7 @@ FastMCP server with 94 tools for Google Docs, Sheets, Drive, Gmail, and Calendar
 | Sheets        | 31    | `readSpreadsheet`, `writeSpreadsheet`, `appendRows`, `clearRange`, `batchWrite`, `createSpreadsheet`, `listSpreadsheets`, `duplicateSheet`, `copySheetTo`, `renameSheet`, `deleteSheet`, `formatCells`, `setCellBorders`, `autoResizeColumns`, `autoResizeRows`, `setColumnWidths`, `setRowHeights`, `freezeRowsAndColumns`, `groupRows`, `protectRange`, `addConditionalFormatting`, `getConditionalFormatting`, `deleteConditionalFormatting`, `setDropdownValidation`, `insertChart`, `deleteChart` |
 | Sheets Tables | 6     | `createTable`, `listTables`, `getTable`, `deleteTable`, `updateTableRange`, `appendTableRows`                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Drive         | 13    | `listGoogleDocs`, `searchGoogleDocs`, `getDocumentInfo`, `createFolder`, `moveFile`, `copyFile`, `createDocument`                                                                                                                                                                                                                                                                                                                                                                                      |
-| Gmail         | 13    | `listMessages`, `getMessage`, `sendEmail`, `trashMessage`, `modifyMessageLabels`, `listLabels`, `createDraft`, `listDrafts`, `getDraft`, `updateDraft`, `sendDraft`, `deleteDraft`, `triageInbox`                                                                                                                                                                                                                                                                                                      |
+| Gmail         | 15    | `listMessages`, `getMessage`, `getAttachment`, `importCsvAttachmentToSpreadsheet`, `sendEmail`, `trashMessage`, `modifyMessageLabels`, `listLabels`, `createDraft`, `listDrafts`, `getDraft`, `updateDraft`, `sendDraft`, `deleteDraft`, `triageInbox`                                                                                                                                                                                                                                                 |
 | Calendar      | 5     | `listEvents`, `createEvent`, `updateEvent`, `deleteEvent`, `quickAddEvent`                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 \*Not fully implemented
@@ -29,7 +29,7 @@ The server supports Google Shared Drives. All Drive file operations (`files.list
 - **Resolved status:** May not persist in Google Docs UI (Drive API limitation)
 - **fixListFormatting:** Experimental, may not work reliably
 - **Gmail hard delete:** `trashMessage` only moves to Trash (reversible). Permanent deletion requires the full `https://mail.google.com/` scope, which is not requested.
-- **Gmail attachments:** `getMessage` exposes attachment metadata only — no download of attachment bytes yet.
+- **Gmail attachments:** `getMessage` exposes attachment metadata; use `getAttachment` with the returned `messageId` and `attachmentId` to retrieve attachment content. `getAttachment` returns direct top-level `dataBase64` for PDFs/images/binary files (or `dataText` for text mode); decode `dataBase64` once to `suggestedFilename` instead of searching for nested `content.data`. Use `importCsvAttachmentToSpreadsheet` for CSV-to-Sheets workflows to avoid routing large CSV content through model context.
 - **Gmail send format:** `sendEmail` is plain-text only. HTML bodies are delivered as literal text.
 - **Calendar scope:** `calendar.events` covers event CRUD only. Cannot create or delete entire calendars.
 - **Calendar recurring events:** `updateEvent` and `deleteEvent` operate on the entire series unless you target a specific instance ID from `listEvents` with `singleEvents=true`.

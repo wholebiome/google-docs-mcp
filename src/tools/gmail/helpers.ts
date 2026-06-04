@@ -114,7 +114,12 @@ export async function prepareMimeRequest(
 
 export function decodeBase64Url(data?: string | null): string {
   if (!data) return '';
-  return Buffer.from(data, 'base64url').toString('utf-8');
+  return decodeBase64UrlToBuffer(data).toString('utf-8');
+}
+
+export function decodeBase64UrlToBuffer(data?: string | null): Buffer {
+  if (!data) return Buffer.alloc(0);
+  return Buffer.from(data, 'base64url');
 }
 
 /**

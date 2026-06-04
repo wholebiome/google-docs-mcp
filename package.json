@@ -33,6 +33,7 @@
   "description": "MCP server for Google Docs, Sheets, Drive, Gmail, and Calendar",
   "dependencies": {
     "@google-cloud/firestore": "^8.3.0",
+    "csv-parse": "^5.6.0",
     "fastmcp": "^3.34.0",
     "google-auth-library": "^10.5.0",
     "googleapis": "^171.4.0",

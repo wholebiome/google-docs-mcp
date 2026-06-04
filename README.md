@@ -191,21 +191,23 @@ Tools across Google Docs, Sheets, and Drive:
 
 ### Gmail
 
-| Tool                  | Description                                                                                                                 |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `listMessages`        | List or search messages using Gmail query syntax (`is:unread`, `from:`, `newer_than:`, etc.)                                |
-| `getMessage`          | Fetch a single message with decoded headers, plain-text body, HTML body, and attachment metadata                            |
-| `sendEmail`           | Send a plain-text email. Supports cc/bcc and threaded replies via `replyToMessageId`                                        |
-| `trashMessage`        | Move a message to Trash (reversible, same as clicking Delete in the Gmail UI)                                               |
-| `modifyMessageLabels` | Add or remove labels on a message — use to star, archive (remove `INBOX`), mark read (remove `UNREAD`)                      |
-| `listLabels`          | List all system and custom labels with their IDs                                                                            |
-| `createDraft`         | Compose a draft instead of sending immediately — for compose/review/send workflows                                          |
-| `listDrafts`          | List existing drafts with recipient, subject, and snippet                                                                   |
-| `getDraft`            | Fetch a single draft with full headers and body                                                                             |
-| `updateDraft`         | Replace the contents of an existing draft (full replace, not patch)                                                         |
-| `sendDraft`           | Send an existing draft by ID                                                                                                |
-| `deleteDraft`         | Permanently delete a draft (not moved to Trash — gone)                                                                      |
-| `triageInbox`         | **Composite:** fetch unread messages with content + heuristic flags (newsletter, meeting, action) for one-shot inbox triage |
+| Tool                               | Description                                                                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `listMessages`                     | List or search messages using Gmail query syntax (`is:unread`, `from:`, `newer_than:`, etc.)                                |
+| `getMessage`                       | Fetch a single message with decoded headers, plain-text body, HTML body, and attachment metadata                            |
+| `getAttachment`                    | Fetch attachment content by `messageId` and `attachmentId`; returns direct `dataBase64`/`dataText` for local saving         |
+| `importCsvAttachmentToSpreadsheet` | Import a CSV Gmail attachment directly into Google Sheets without returning the CSV through model context                   |
+| `sendEmail`                        | Send a plain-text email. Supports cc/bcc and threaded replies via `replyToMessageId`                                        |
+| `trashMessage`                     | Move a message to Trash (reversible, same as clicking Delete in the Gmail UI)                                               |
+| `modifyMessageLabels`              | Add or remove labels on a message — use to star, archive (remove `INBOX`), mark read (remove `UNREAD`)                      |
+| `listLabels`                       | List all system and custom labels with their IDs                                                                            |
+| `createDraft`                      | Compose a draft instead of sending immediately — for compose/review/send workflows                                          |
+| `listDrafts`                       | List existing drafts with recipient, subject, and snippet                                                                   |
+| `getDraft`                         | Fetch a single draft with full headers and body                                                                             |
+| `updateDraft`                      | Replace the contents of an existing draft (full replace, not patch)                                                         |
+| `sendDraft`                        | Send an existing draft by ID                                                                                                |
+| `deleteDraft`                      | Permanently delete a draft (not moved to Trash — gone)                                                                      |
+| `triageInbox`                      | **Composite:** fetch unread messages with content + heuristic flags (newsletter, meeting, action) for one-shot inbox triage |
 
 ### Google Calendar
 
@@ -479,7 +481,6 @@ Without `GOOGLE_MCP_PROFILE`, behavior is unchanged.
 - **Markdown tables/images:** Not yet supported in the markdown-to-Docs conversion.
 - **Deeply nested lists:** Lists with 3+ nesting levels may have formatting quirks.
 - **Gmail hard delete:** `trashMessage` moves messages to Trash (reversible). Permanent deletion requires the broader `https://mail.google.com/` scope and is not exposed in v0.1.
-- **Gmail attachments:** `getMessage` returns attachment metadata but does not download attachment bytes yet.
 - **Gmail HTML email send:** `sendEmail` sends plain-text only. For HTML bodies, paste HTML into the `body` field — it will be delivered as text, not rendered.
 - **Calendar scope:** `calendar.events` permits event CRUD on existing calendars but cannot create or delete entire calendars themselves.
 - **Calendar recurring events:** `updateEvent` and `deleteEvent` modify the entire recurring series unless you target a specific instance ID returned by `listEvents` with `singleEvents=true`.
