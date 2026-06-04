@@ -3,6 +3,7 @@ import { decodeBase64UrlToBuffer } from './helpers.js';
 import {
   buildAttachmentContentResult,
   formatAttachmentContent,
+  safeAttachmentFileName,
   stringifyAttachmentResult,
 } from './getAttachment.js';
 
@@ -72,5 +73,12 @@ describe('Gmail attachment content helpers', () => {
     });
 
     expect(result.suggestedFilename).toBe('dashboard-snapshot.pdf');
+  });
+
+  it('sanitizes control characters before using attachment filenames', () => {
+    expect(safeAttachmentFileName('bad\r\n\tname', 'application/pdf')).toBe('bad___name.pdf');
+    expect(safeAttachmentFileName('folder/report.pdf', 'application/pdf')).toBe(
+      'folder_report.pdf'
+    );
   });
 });

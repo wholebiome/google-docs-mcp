@@ -38,9 +38,46 @@ function quoteSheetName(sheetName: string): string {
   return `'${sheetName.replace(/'/g, "''")}'`;
 }
 
+export function parseChunkStartRange(range: string): {
+  sheetName: string | null;
+  startCell: string;
+} {
+  if (range.startsWith("'")) {
+    let sheetName = '';
+    for (let i = 1; i < range.length; i += 1) {
+      const char = range[i];
+      if (char === "'") {
+        if (range[i + 1] === "'") {
+          sheetName += "'";
+          i += 1;
+          continue;
+        }
+        if (range[i + 1] !== '!') {
+          throw new UserError(
+            `Invalid quoted A1 range: ${range}. Expected a sheet-name separator after the closing quote.`
+          );
+        }
+        return {
+          sheetName,
+          startCell: range.slice(i + 2).split(':')[0],
+        };
+      }
+      sheetName += char;
+    }
+
+    throw new UserError(`Invalid quoted A1 range: ${range}. Missing closing quote.`);
+  }
+
+  const separator = range.indexOf('!');
+  const a1Range = separator === -1 ? range : range.slice(separator + 1);
+  return {
+    sheetName: separator === -1 ? null : range.slice(0, separator),
+    startCell: a1Range.split(':')[0],
+  };
+}
+
 export function chunkStartRange(range: string, rowOffset: number): string {
-  const { sheetName, a1Range } = SheetsHelpers.parseRange(range);
-  const startCell = a1Range.split(':')[0];
+  const { sheetName, startCell } = parseChunkStartRange(range);
   const { row, col } = SheetsHelpers.a1ToRowCol(startCell);
   const cell = SheetsHelpers.rowColToA1(row + rowOffset, col);
   return sheetName ? `${quoteSheetName(sheetName)}!${cell}` : cell;

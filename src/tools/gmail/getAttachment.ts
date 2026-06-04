@@ -38,8 +38,8 @@ export function stringifyAttachmentResult(result: unknown, pretty: boolean | und
   return JSON.stringify(result, null, pretty === false ? 0 : 2);
 }
 
-function safeAttachmentFileName(name?: string | null, mimeType?: string | null): string {
-  const cleaned = (name || 'gmail-attachment').replace(/[\\/\0\r\n\t]/g, '_').trim();
+export function safeAttachmentFileName(name?: string | null, mimeType?: string | null): string {
+  const cleaned = (name || 'gmail-attachment').replace(/[\\/\x00-\x1f\x7f]/g, '_').trim();
   const safeName = cleaned || 'gmail-attachment';
   if (safeName.includes('.')) return safeName;
 
@@ -185,7 +185,7 @@ export function register(server: FastMCP) {
             accessToken: store.accessToken,
             messageId: args.messageId,
             attachmentId: args.attachmentId,
-            fileName: args.filename ?? 'gmail-attachment',
+            fileName: safeAttachmentFileName(args.filename, args.mimeType),
             mimeType: args.mimeType ?? 'application/octet-stream',
             maxBytes: args.maxBytes,
           });
@@ -196,7 +196,7 @@ export function register(server: FastMCP) {
               expiresInSeconds: 300,
               messageId: args.messageId,
               attachmentId: args.attachmentId,
-              filename: args.filename ?? null,
+              filename: safeAttachmentFileName(args.filename, args.mimeType),
               mimeType: args.mimeType ?? null,
             },
             args.pretty

@@ -28,4 +28,12 @@ describe('Gmail CSV attachment import helpers', () => {
   it('calculates overwrite chunk start cells from an A1 start range', () => {
     expect(chunkStartRange('Import Sheet!B2', 1000)).toBe("'Import Sheet'!B1002");
   });
+
+  it('preserves apostrophes in quoted sheet names when chunking overwrites', () => {
+    expect(chunkStartRange("'Bob''s Sheet'!A1", 10)).toBe("'Bob''s Sheet'!A11");
+  });
+
+  it('handles exclamation points inside quoted sheet names when chunking overwrites', () => {
+    expect(chunkStartRange("'Q1!Import'!A1", 5)).toBe("'Q1!Import'!A6");
+  });
 });
