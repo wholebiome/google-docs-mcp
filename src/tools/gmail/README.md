@@ -4,16 +4,16 @@ Tools for reading, drafting, sending, deleting, organizing, and triaging Gmail m
 
 ## Messages
 
-| Tool                               | Description                                                                                                     |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `listMessages`                     | Lists or searches messages using the full Gmail query syntax (e.g. `is:unread from:foo newer_than:7d`)          |
-| `getMessage`                       | Fetches a single message with decoded headers, plain-text body, HTML body, and attachment metadata              |
-| `getAttachment`                    | Fetches Gmail attachment bytes by `messageId` and `attachmentId`; remote mode returns a download URL by default |
-| `importCsvAttachmentToSpreadsheet` | Imports a CSV Gmail attachment directly into Google Sheets without returning CSV content to the model           |
-| `sendEmail`                        | Sends a plain-text email; supports cc/bcc and threaded replies via `replyToMessageId`                           |
-| `trashMessage`                     | Moves a message to Trash (reversible from the Gmail UI Trash folder for 30 days). Not a permanent delete        |
-| `modifyMessageLabels`              | Adds and/or removes labels on a message — used for star, archive, mark read, and custom-label tagging           |
-| `listLabels`                       | Lists all system and user-created Gmail labels with their IDs, for use with the other tools                     |
+| Tool                               | Description                                                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `listMessages`                     | Lists or searches messages using the full Gmail query syntax (e.g. `is:unread from:foo newer_than:7d`)      |
+| `getMessage`                       | Fetches a single message with decoded headers, plain-text body, HTML body, and attachment metadata          |
+| `getAttachment`                    | Fetches Gmail attachments by `messageId` and `attachmentId`; remote mode returns an MCP resource by default |
+| `importCsvAttachmentToSpreadsheet` | Imports a CSV Gmail attachment directly into Google Sheets without returning CSV content to the model       |
+| `sendEmail`                        | Sends a plain-text email; supports cc/bcc and threaded replies via `replyToMessageId`                       |
+| `trashMessage`                     | Moves a message to Trash (reversible from the Gmail UI Trash folder for 30 days). Not a permanent delete    |
+| `modifyMessageLabels`              | Adds and/or removes labels on a message — used for star, archive, mark read, and custom-label tagging       |
+| `listLabels`                       | Lists all system and user-created Gmail labels with their IDs, for use with the other tools                 |
 
 ## Attachments
 
@@ -21,9 +21,12 @@ Use `listMessages` with a query such as `has:attachment filename:csv`, then call
 `getMessage` with `format="full"` to inspect `attachments[].attachmentId`.
 
 For ordinary downloads, pass that `messageId` and `attachmentId` to
-`getAttachment`. In remote mode, `getAttachment` returns a five-minute
-`downloadUrl` by default so large attachments do not enter the model context. Use
-`returnAs="content"` only for small attachments that should be returned inline.
+`getAttachment`. In remote mode, `getAttachment` returns an MCP `resource` by
+default so PDFs, images, and other binary files are delivered as file-like
+content instead of a human-facing download link or JSON `content.data` blob. Use
+`returnAs="url"` only when the caller can fetch links itself, and
+`returnAs="content"` only for small attachments that should be returned inline as
+text/base64 JSON.
 
 For CSV-to-Sheets workflows, prefer `importCsvAttachmentToSpreadsheet`. It
 fetches the attachment, parses CSV server-side, writes rows to Sheets in chunks,

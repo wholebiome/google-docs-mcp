@@ -29,7 +29,7 @@ The server supports Google Shared Drives. All Drive file operations (`files.list
 - **Resolved status:** May not persist in Google Docs UI (Drive API limitation)
 - **fixListFormatting:** Experimental, may not work reliably
 - **Gmail hard delete:** `trashMessage` only moves to Trash (reversible). Permanent deletion requires the full `https://mail.google.com/` scope, which is not requested.
-- **Gmail attachments:** `getMessage` exposes attachment metadata; use `getAttachment` with the returned `messageId` and `attachmentId` to retrieve bytes/download URLs. For CSV-to-Sheets workflows, use `importCsvAttachmentToSpreadsheet` to avoid routing large CSV content through model context.
+- **Gmail attachments:** `getMessage` exposes attachment metadata; use `getAttachment` with the returned `messageId` and `attachmentId` to retrieve attachment content. In remote mode it returns an MCP resource by default for PDFs/images/binary files; use `importCsvAttachmentToSpreadsheet` for CSV-to-Sheets workflows to avoid routing large CSV content through model context.
 - **Gmail send format:** `sendEmail` is plain-text only. HTML bodies are delivered as literal text.
 - **Calendar scope:** `calendar.events` covers event CRUD only. Cannot create or delete entire calendars.
 - **Calendar recurring events:** `updateEvent` and `deleteEvent` operate on the entire series unless you target a specific instance ID from `listEvents` with `singleEvents=true`.
